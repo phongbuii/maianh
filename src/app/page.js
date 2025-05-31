@@ -7,6 +7,8 @@ import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { QRCodeSVG } from 'qrcode.react';
 import Home from './components/Home';
+import HomePage from './components/maianh1';
+import HeartRain from './components/maianh2';
 
 const NUM_TEXTS = 80; // Reduced from 100
 const NUM_HEARTS = 20; // Reduced from 30
@@ -238,7 +240,7 @@ const QRCodeOverlay = () => {
   );
 };
 
-export default function HomePage() {
+export default function Page() {
   const [texts, setTexts] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -262,41 +264,8 @@ export default function HomePage() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
-      <Canvas
-        camera={{
-          position: [0, 0, 35], // Increased from 20
-          fov: 45, // Reduced from 65 for narrower view
-          near: 0.1,
-          far: 1000
-        }}
-        shadows
-      >
-        <color attach="background" args={['#000000']} />
-        <fogExp2 attach="fog" args={['#000000', 0.001]} />
-        <StarField />
-        <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
-        <Scene texts={texts} />
-        <OrbitControls
-          enableZoom={true}
-          minDistance={15} // Increased from 8
-          maxDistance={50} // Increased from 40
-          enableDamping={true}
-          dampingFactor={0.05}
-          rotateSpeed={0.5}
-          zoomSpeed={0.6}
-          target={[0, 0, 0]} // Set default look-at point
-        />
-        <EffectComposer>
-          <Bloom
-            intensity={3}
-            luminanceThreshold={0.1}
-            luminanceSmoothing={0.9}
-            radius={1}
-          />
-        </EffectComposer>
-      </Canvas>
-      <QRCodeOverlay />
+      <HomePage />
+      {/* <HeartRain /> */}
     </div>
 
   );

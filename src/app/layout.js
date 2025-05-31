@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Mai Anh Đẹp Trong Mắt  Tôi", // Thay bằng tiêu đề bạn muốn
+  title: "Mai Anh (っ◔◡◔)っ ♥ ", // Thay bằng tiêu đề bạn muốn
   description: "Một co gasi dễ thương xinh đẹp.", // Thay bằng mô tả bạn muốn
   icons: {
     icon: "images/maianh.png", // Hoặc đường dẫn đến tệp biểu tượng của bạn, ví dụ: '/icon.png'
