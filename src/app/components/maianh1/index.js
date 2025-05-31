@@ -6,6 +6,7 @@ import { EffectComposer, Bloom, DepthOfField } from '@react-three/postprocessing
 import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { QRCodeSVG } from 'qrcode.react';
+import Image from 'next/image';
 
 // Update constants
 const NUM_TEXTS = 40; // Reduced from 80
@@ -439,40 +440,43 @@ const QRCodeOverlay = () => {
 export default function HomePage() {
     const [texts, setTexts] = useState([]);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(true); // Set initial state to true
     const audioRef = useRef(null);
 
+    // Initialize and play audio
     useEffect(() => {
-        // Create audio element with autoplay
         audioRef.current = new Audio('/music/nhac.mp3');
         audioRef.current.loop = true;
-        audioRef.current.volume = 1.0;
-        audioRef.current.autoplay = true;
-        audioRef.current.muted = false;
+        audioRef.current.volume = 0.5;
 
-        const playSound = async () => {
-            try {
-                await audioRef.current.play();
-            } catch (err) {
-                console.log("Retrying audio play...");
-                setTimeout(playSound, 100);
+        const enableAudio = () => {
+            if (audioRef.current && !isPlaying) {
+                audioRef.current.play().then(() => {
+                    setIsPlaying(true);
+                }).catch((err) => {
+                    console.log("Audio play failed:", err);
+                });
             }
+            window.removeEventListener('click', enableAudio);
+            window.removeEventListener('touchstart', enableAudio);
         };
 
-        playSound();
+        // Đợi người dùng click hoặc chạm để bắt đầu nhạc
+        window.addEventListener('click', enableAudio);
+        window.addEventListener('touchstart', enableAudio);
 
-        // Force play on window load
-        window.addEventListener('load', playSound);
-        toggleMusic()
         return () => {
-            window.removeEventListener('load', playSound);
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
             }
+            window.removeEventListener('click', enableAudio);
+            window.removeEventListener('touchstart', enableAudio);
         };
     }, []);
 
+
+    // Remove existing event listeners and click handlers
     const toggleMusic = () => {
         if (audioRef.current) {
             if (isPlaying) {
@@ -483,11 +487,7 @@ export default function HomePage() {
             setIsPlaying(!isPlaying);
         }
     };
-    useEffect(() => {
-        if (!isPlaying) {
-            toggleMusic();
-        }
-    }, [isPlaying])
+
     // Update text generation in useEffect
     useEffect(() => {
         const generatedTexts = Array.from({ length: NUM_TEXTS }).map((_, index) => ({
@@ -510,6 +510,7 @@ export default function HomePage() {
     return (
         <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
             <button
+                id="toggle-music-button"
                 onClick={toggleMusic}
                 style={{
                     position: 'fixed',
@@ -517,14 +518,31 @@ export default function HomePage() {
                     right: '20px',
                     zIndex: 1000,
                     padding: '10px',
-                    borderRadius: '5px',
-                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '15px',
+                    // background: 'rgba(255,255,255,0.2)',
                     border: 'none',
-                    color: 'white',
-                    cursor: 'pointer'
+                    // color: 'white',
+                    // cursor: 'pointer',
+                    alignItems: 'center',
                 }}
             >
                 {/* {isPlaying ? '🔇 Mute' : '🔊 Play'} */}
+                <Image
+                    onClick={toggleMusic}
+                    src="/images/maianh.png"
+                    width={32}
+                    height={32}
+                    alt="Toggle Music"
+                    style={{
+                        animation: 'spin 4s linear infinite',
+                        transition: 'transform 0.3s ease',
+                        ':hover': {
+                            transform: 'scale(1.1)'
+                        },
+                        top: '20px',
+                        right: '20px',
+                    }}
+                />
             </button>
             <Canvas
                 camera={{
@@ -599,6 +617,16 @@ export default function HomePage() {
                 />
             </Canvas>
             <QRCodeOverlay />
+            <style jsx global>{`
+                @keyframes spin {
+                    from {
+                        transform: rotate(0deg);
+                    }
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
