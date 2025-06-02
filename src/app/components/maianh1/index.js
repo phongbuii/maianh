@@ -210,11 +210,10 @@ const Scene = ({ texts }) => {
     const groupRef = useRef();
     const heartsRef = useRef();
 
-    // Update text animation data constants
+    // Animation data cho texts
     const textAnimationData = useRef(
         Array(NUM_TEXTS).fill().map((_, index) => ({
-            // More consistent fall speed
-            fallSpeed: 0.095, // Fixed speed instead of random
+            fallSpeed: 0.235, // Tăng từ 0.095 lên 0.25 (hoặc cao hơn nếu muốn)
 
             // Even vertical distribution
             initialY: 25 + (index * 2), // More spread out vertically
@@ -243,10 +242,10 @@ const Scene = ({ texts }) => {
         }))
     );
 
-    // Enhanced heart animation data with different sizes
+    // Animation data cho hearts
     const heartAnimationData = useRef(
         Array(NUM_HEARTS).fill().map((_, index) => ({
-            fallSpeed: getRandomFloat(0.02, 0.04),
+            fallSpeed: getRandomFloat(0.068, 0.102), // Tăng từ 0.02-0.04 lên 0.08-0.12
             initialY: 15 + (index * 1.2),
             startDelay: index * 0.3,
             horizontalOffset: getRandomFloat(-0.003, 0.003),
@@ -440,8 +439,9 @@ const QRCodeOverlay = () => {
 export default function HomePage() {
     const [texts, setTexts] = useState([]);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(true); // Set initial state to true
+    const [isPlaying, setIsPlaying] = useState(false); // Initialize as false
     const audioRef = useRef(null);
+    const buttonRef = useRef(null);
 
     // Initialize and play audio
     useEffect(() => {
@@ -449,40 +449,35 @@ export default function HomePage() {
         audioRef.current.loop = true;
         audioRef.current.volume = 0.5;
 
-        const enableAudio = () => {
-            if (audioRef.current && !isPlaying) {
-                audioRef.current.play().then(() => {
-                    setIsPlaying(true);
-                }).catch((err) => {
-                    console.log("Audio play failed:", err);
-                });
-            }
-            window.removeEventListener('click', enableAudio);
-            window.removeEventListener('touchstart', enableAudio);
-        };
-
-        // Đợi người dùng click hoặc chạm để bắt đầu nhạc
-        window.addEventListener('click', enableAudio);
-        window.addEventListener('touchstart', enableAudio);
+        // Attempt to play audio automatically
+        // Browsers might block this without user interaction
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                // Autoplay started!
+                setIsPlaying(true);
+            }).catch(error => {
+                // Autoplay was prevented.
+                console.log("Audio autoplay was prevented:", error);
+                setIsPlaying(false);
+                // You could show a UI element asking the user to click to play music.
+            });
+        }
 
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
             }
-            window.removeEventListener('click', enableAudio);
-            window.removeEventListener('touchstart', enableAudio);
         };
-    }, []);
+    }, []); // Runs once on component mount
 
-
-    // Remove existing event listeners and click handlers
     const toggleMusic = () => {
         if (audioRef.current) {
             if (isPlaying) {
                 audioRef.current.pause();
             } else {
-                audioRef.current.play();
+                audioRef.current.play().catch(e => console.log("Error playing audio on toggle:", e));
             }
             setIsPlaying(!isPlaying);
         }
@@ -501,7 +496,6 @@ export default function HomePage() {
         }));
         setTexts(generatedTexts);
         setIsLoaded(true);
-        audioRef?.current.play()
     }, []);
 
     if (!isLoaded) {
@@ -510,6 +504,7 @@ export default function HomePage() {
     return (
         <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
             <button
+                ref={buttonRef}
                 id="toggle-music-button"
                 onClick={toggleMusic}
                 style={{
@@ -519,16 +514,11 @@ export default function HomePage() {
                     zIndex: 1000,
                     padding: '10px',
                     borderRadius: '15px',
-                    // background: 'rgba(255,255,255,0.2)',
                     border: 'none',
-                    // color: 'white',
-                    // cursor: 'pointer',
                     alignItems: 'center',
                 }}
             >
-                {/* {isPlaying ? '🔇 Mute' : '🔊 Play'} */}
                 <Image
-                    onClick={toggleMusic}
                     src="/images/maianh.png"
                     width={32}
                     height={32}
