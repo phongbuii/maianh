@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import Home from './components/Home';
 import HomePage from './components/maianh1';
 import HeartRain from './components/maianh2';
+import GlowingHeartAnimation from './components/maianh1';
 
 const NUM_TEXTS = 80; // Reduced from 100
 const NUM_HEARTS = 20; // Reduced from 30
@@ -264,7 +265,7 @@ export default function Page() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
-      <HomePage />
+      <GlowingHeartAnimation />
       {/* <HeartRain /> */}
     </div>
 
