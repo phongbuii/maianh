@@ -9,11 +9,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import Home from './components/Home';
 import HomePage from './components/maianh1';
 import HeartRain from './components/maianh2';
+import GlowingHeartAnimation from './components/maianh1';
 
-const NUM_TEXTS = 80; // Reduced from 100
-const NUM_HEARTS = 20; // Reduced from 30
-const SPREAD_FACTOR = 8; // Reduced from 12
-const NUM_SPARKLES = 80; // Reduced from 120
+const NUM_TEXTS = 120; // Tăng từ 80
+const NUM_HEARTS = 40; // Tăng từ 20 
+const SPREAD_FACTOR = 6; // Giảm từ 8 để các particles gần nhau hơn
+const NUM_SPARKLES = 120; // Tăng từ 80
 const NUM_PETALS = 20; // Reduced from 30
 
 const getRandom = (min, max) =>
@@ -264,7 +265,7 @@ export default function Page() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
-      <HomePage />
+      <GlowingHeartAnimation />
       {/* <HeartRain /> */}
     </div>
 

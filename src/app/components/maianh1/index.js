@@ -1,622 +1,655 @@
-'use client';
+import React, { useEffect, useRef } from 'react';
 
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Text, OrbitControls, Effects } from '@react-three/drei';
-import { EffectComposer, Bloom, DepthOfField } from '@react-three/postprocessing';
-import { useRef, useState, useEffect } from 'react';
-import * as THREE from 'three';
-import { QRCodeSVG } from 'qrcode.react';
-import Image from 'next/image';
+class Particle {
+  constructor(x, y, referencePoint) {
+    this.x = x;
+    this.y = y;
+    this.referencePoint = referencePoint; // Store reference point
+    this.size = Math.random() * 5 + 2; // Increased size range
+    this.speedX = Math.random() * 4 - 2; // Increased speed range
+    this.speedY = Math.random() * 4 - 2;
+    this.life = 1;
+    this.decay = Math.random() * 0.008 + 0.005; // Slower decay
+  }
 
-// Update constants
-const NUM_TEXTS = 40; // Reduced from 80
-const NUM_HEARTS = 45; // Increased from 20
-const SPREAD_FACTOR = 8;
-const NUM_SPARKLES = 180;
-const NUM_PETALS = 20;
+  update() {
+    this.x += this.speedX * 0.2;
+    this.y += this.speedY * 0.2;
+    this.life -= this.decay;
+    
+    // Reset particle if it dies
+    if (this.life <= 0) {
+      this.life = 1;
+      // Use stored reference point instead of undefined point
+      this.x = this.referencePoint.x + (Math.random() - 0.5) * 20;
+      this.y = this.referencePoint.y + (Math.random() - 0.5) * 20;
+    }
+  }
 
-const getRandom = (min, max) =>
-    Math.floor(Math.random() * (max - min) + min);
+  draw(ctx) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 0, 102, ${this.life})`;
+    ctx.fill();
+    
+    // Add glow effect
+    const gradient = ctx.createRadialGradient(
+      this.x, this.y, 0,
+      this.x, this.y, this.size * 3 // Increased glow radius
+    );
+    gradient.addColorStop(0, `rgba(255, 0, 102, ${this.life * 0.7})`); // Increased opacity
+    gradient.addColorStop(1, 'transparent');
+    
+    ctx.fillStyle = gradient;
+    ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
 
-const getRandomFloat = (min, max) =>
-    Math.random() * (max - min) + min;
+// Add heart emojis array
+const HEART_EMOJIS = ['❤️', '💖', '💝', '💗', '💓', '💕'];
 
-// Enhanced HeartShape component with blur, shadow and glow effects
-const HeartShape = ({ position, scale = 1 }) => {
-    const heartShape = new THREE.Shape();
-    const x = 0, y = 0;
-    heartShape.moveTo(x + 0.5, y + 0.5);
-    heartShape.bezierCurveTo(x + 0.5, y + 0.5, x + 0.4, y, x, y);
-    heartShape.bezierCurveTo(x - 0.6, y, x - 0.6, y + 0.7, x - 0.6, y + 0.7);
-    heartShape.bezierCurveTo(x - 0.6, y + 1.1, x - 0.3, y + 1.54, x + 0.5, y + 1.9);
-    heartShape.bezierCurveTo(x + 1.2, y + 1.54, x + 1.6, y + 1.1, x + 1.6, y + 0.7);
-    heartShape.bezierCurveTo(x + 1.6, y + 0.7, x + 1.6, y, x + 1, y);
-    heartShape.bezierCurveTo(x + 0.7, y, x + 0.5, y + 0.5, x + 0.5, y + 0.5);
+// Update FallingText class to include heart decorations
+class FallingText {
+  constructor(text, x, startY, speed, color) {
+    this.text = text;
+    this.x = x;
+    this.y = startY;
+    this.speed = speed * 2;
+    this.color = color;
+    this.opacity = 1;
+    this.scale = Math.random() * 0.4 + 0.9; // Smaller scale for better look
+    // Add small hearts around text
+    this.hearts = Array(2).fill().map(() => ({
+      offsetX: (Math.random() - 0.5) * 40,
+      offsetY: (Math.random() - 0.5) * 20,
+      emoji: HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)],
+      scale: Math.random() * 0.3 + 0.2 // Very small hearts
+    }));
+  }
 
-    const heartRef = useRef();
-    const shadowRef = useRef();
-    const glowRef = useRef();
+  draw(ctx) {
+    ctx.save();
+    
+    // Draw main text
+    ctx.font = `bold ${14 * this.scale}px Arial, "Microsoft YaHei", "微软雅黑"`;
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+    ctx.textAlign = 'center';
+    
+    // Enhanced shadow for text
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    
+    ctx.fillText(this.text, this.x, this.y);
 
-    useFrame((state) => {
-        if (heartRef.current) {
-            const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.15 + 1;
-            heartRef.current.scale.set(pulse * scale, pulse * scale, pulse * scale);
-
-            // Animate glow intensity
-            if (glowRef.current) {
-                const glowPulse = Math.sin(state.clock.elapsedTime * 3) * 0.3 + 0.7;
-                glowRef.current.material.emissiveIntensity = glowPulse * 1.2;
-            }
-        }
-
-        // Animate shadow with slight delay for more dynamic effect
-        if (shadowRef.current) {
-            const shadowPulse = Math.sin(state.clock.elapsedTime * 2 + 0.5) * 0.1 + 0.9;
-            shadowRef.current.scale.set(shadowPulse * scale * 1.15, shadowPulse * scale * 1.15, shadowPulse * scale * 1.15);
-            shadowRef.current.material.opacity = shadowPulse * 0.6;
-        }
+    // Draw decorative hearts
+    this.hearts.forEach(heart => {
+      ctx.font = `${12 * heart.scale}px Arial`;
+      ctx.shadowColor = 'rgba(255, 192, 203, 0.5)';
+      ctx.shadowBlur = 3;
+      ctx.fillText(
+        heart.emoji,
+        this.x + heart.offsetX,
+        this.y + heart.offsetY
+      );
     });
 
-    return (
-        <group>
-            {/* Enhanced Shadow Layer */}
-            <mesh
-                ref={shadowRef}
-                position={[0.15, -0.15, -0.15]}
-                rotation={[Math.PI, 0, 0]}
-                scale={[1.1, 1.1, 1.1]}
-            >
-                <shapeGeometry args={[heartShape]} />
-                <meshBasicMaterial
-                    color="#000000"
-                    transparent
-                    opacity={0.6}
-                    blending={THREE.MultiplyBlending}
-                />
-            </mesh>
+    ctx.restore();
+  }
 
-            {/* Additional Shadow for more depth */}
-            <mesh
-                position={[0.08, -0.08, -0.08]}
-                rotation={[Math.PI, 0, 0]}
-                scale={[1.05, 1.05, 1.05]}
-            >
-                <shapeGeometry args={[heartShape]} />
-                <meshBasicMaterial
-                    color="#330000"
-                    transparent
-                    opacity={0.4}
-                    blending={THREE.MultiplyBlending}
-                />
-            </mesh>
+  update(canvasHeight) {
+    this.y += this.speed;
+    if (this.y > canvasHeight) {
+      this.y = -50 - Math.random() * 50;
+      this.x += (Math.random() - 0.5) * 30;
+      // Regenerate heart positions when text resets
+      this.hearts.forEach(heart => {
+        heart.offsetX = (Math.random() - 0.5) * 40;
+        heart.offsetY = (Math.random() - 0.5) * 20;
+        heart.emoji = HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)];
+      });
+    }
+  }
+}
 
-            {/* Outer Glow Layer */}
-            <mesh
-                ref={glowRef}
-                rotation={[Math.PI, 0, 0]}
-                scale={[1.2, 1.2, 1.2]}
-            >
-                <shapeGeometry args={[heartShape]} />
-                <meshBasicMaterial
-                    color="#ff4444"
-                    transparent
-                    opacity={0.4}
-                    blending={THREE.AdditiveBlending}
-                    side={THREE.DoubleSide}
-                />
-            </mesh>
+// Add standalone falling hearts
+class FallingHeart {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.speed = Math.random() * 2 + 1;
+    this.emoji = HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)];
+    this.scale = Math.random() * 0.3 + 0.2;
+    this.drift = Math.sin(Math.random() * Math.PI * 2) * 0.5;
+  }
 
-            {/* Main Heart */}
-            <mesh
-                ref={heartRef}
-                rotation={[Math.PI, 0, 0]}
-                castShadow
-                receiveShadow
-            >
-                <shapeGeometry args={[heartShape]} />
-                <meshPhysicalMaterial
-                    color="#ff0000"
-                    emissive="#cc0000"
-                    emissiveIntensity={1.2}
-                    transparent
-                    opacity={0.8}
-                    metalness={0.1}
-                    roughness={0.3}
-                    clearcoat={0.3}
-                    clearcoatRoughness={0.2}
-                    side={THREE.DoubleSide}
-                    blending={THREE.NormalBlending}
-                    transmission={0.1} // Adds subtle transparency/glass effect
-                />
-            </mesh>
-        </group>
-    );
+  update(canvasHeight) {
+    this.y += this.speed;
+    this.x += this.drift;
+    if (this.y > canvasHeight) {
+      this.y = -50;
+      this.x = Math.random() * window.innerWidth;
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.font = `${12 * this.scale}px Arial`;
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(255, 192, 203, 0.5)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.restore();
+  }
+}
+
+// Add device detection helper at the top of the file
+const isMobile = () => {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
-const StarField = () => {
-    const count = 2000;
-    const [positions] = useState(() => {
-        const positions = new Float32Array(count * 3);
-        for (let i = 0; i < count * 3; i += 3) {
-            positions[i] = (Math.random() - 0.5) * 100;
-            positions[i + 1] = (Math.random() - 0.5) * 100;
-            positions[i + 2] = (Math.random() - 0.5) * 100;
-        }
-        return positions;
-    });
+// Update the GlowingHeartAnimation component
+const GlowingHeartAnimation = () => {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+  const particlesRef = useRef([]);
+  const platformBubblesRef = useRef([]);
+  const rotationRef = useRef(0); // Thêm ref để theo dõi góc xoay
+  const imageRef = useRef(null); // Thêm ref cho hình ảnh
+  const leftTextsRef = useRef([]);
+  const rightTextsRef = useRef([]);
+  const fallingHeartsRef = useRef([]); // Thêm ref cho trái tim rơi
 
-    return (
-        <points>
-            <bufferGeometry>
-                <bufferAttribute
-                    attachObject={['attributes', 'position']}
-                    count={positions.length / 3}
-                    array={positions}
-                    itemSize={3}
-                />
-            </bufferGeometry>
-            <pointsMaterial
-                size={0.1}
-                color="#ffffff"
-                transparent
-                opacity={0.8}
-                sizeAttenuation
-            />
-        </points>
-    );
-};
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Load image
+    const heartImage = new Image();
+    heartImage.src = 'images/maianh.png'; // Đảm bảo hình ảnh nằm trong thư mục công cộng
+    imageRef.current = heartImage;
 
-const LoveSparkles = () => {
-    const sparklesRef = useRef();
-
-    useFrame((state) => {
-        sparklesRef.current.children.forEach((sparkle, index) => {
-            sparkle.rotation.y += 0.015;
-            sparkle.position.y += Math.sin(state.clock.elapsedTime + sparkle.position.x) * 0.015;
-
-            // Add twinkling effect
-            const twinkle = Math.sin(state.clock.elapsedTime * 3 + index) * 0.3 + 0.7;
-            sparkle.material.emissiveIntensity = twinkle * 2;
-        });
-    });
-
-    return (
-        <group ref={sparklesRef}>
-            {Array.from({ length: NUM_SPARKLES }).map((_, i) => (
-                <mesh
-                    key={i}
-                    position={[
-                        getRandom(-SPREAD_FACTOR, SPREAD_FACTOR),
-                        getRandom(-SPREAD_FACTOR, SPREAD_FACTOR),
-                        getRandom(-SPREAD_FACTOR, SPREAD_FACTOR)
-                    ]}
-                    scale={[0.02, 0.02, 0.02]}
-                >
-                    <sphereGeometry scale={0.02} args={[1, 8, 8]} />
-                    <meshPhongMaterial
-                        color="#F0F0F0"
-                        emissive="#F0F0F0"
-                        emissiveIntensity={2}
-                        transparent
-                        opacity={0.6}
-                    />
-                </mesh>
-            ))}
-        </group>
-    );
-};
-
-const Scene = ({ texts }) => {
-    const groupRef = useRef();
-    const heartsRef = useRef();
-
-    // Animation data cho texts
-    const textAnimationData = useRef(
-        Array(NUM_TEXTS).fill().map((_, index) => ({
-            fallSpeed: 0.235, // Tăng từ 0.095 lên 0.25 (hoặc cao hơn nếu muốn)
-
-            // Even vertical distribution
-            initialY: 25 + (index * 2), // More spread out vertically
-
-            // Consistent delays between texts
-            startDelay: index * 0.2, // Increased delay between each text
-
-            // Reduced horizontal movement
-            horizontalOffset: 0.001, // Fixed small value for subtle movement
-
-            // Minimal rotation
-            rotationSpeed: {
-                x: 0.0001,
-                y: 0.0001,
-                z: 0.0001
-            },
-
-            // Rest of the properties remain the same
-            maxRotation: {
-                x: getRandomFloat(-0.087, 0.087),
-                y: getRandomFloat(-0.087, 0.087),
-                z: getRandomFloat(-0.087, 0.087)
-            },
-            currentRotation: { x: 0, y: 0, z: 0 },
-            currentTime: 0
-        }))
-    );
-
-    // Animation data cho hearts
-    const heartAnimationData = useRef(
-        Array(NUM_HEARTS).fill().map((_, index) => ({
-            fallSpeed: getRandomFloat(0.068, 0.102), // Tăng từ 0.02-0.04 lên 0.08-0.12
-            initialY: 15 + (index * 1.2),
-            startDelay: index * 0.3,
-            horizontalOffset: getRandomFloat(-0.003, 0.003),
-            rotationSpeed: getRandomFloat(0.02, 0.04),
-            currentTime: 0,
-            scale: getRandomFloat(0.25, 0.45), // Different sizes for depth
-            initialPosition: {
-                x: getRandomFloat(-SPREAD_FACTOR, SPREAD_FACTOR),
-                z: getRandomFloat(-SPREAD_FACTOR, SPREAD_FACTOR)
-            }
-        }))
-    );
-
-    useFrame((state, delta) => {
-        // Animation cho texts
-        texts.forEach((text, index) => {
-            const mesh = groupRef.current?.children[index];
-            if (mesh) {
-                const animData = textAnimationData.current[index];
-                animData.currentTime += delta;
-
-                // Chỉ bắt đầu animation sau delay
-                if (animData.currentTime > animData.startDelay) {
-                    // Chuyển động rơi đều đặn
-                    mesh.position.y -= animData.fallSpeed;
-
-                    // Chuyển động ngang nhẹ tạo hiệu ứng tự nhiên
-                    mesh.position.x += Math.sin(animData.currentTime * 2) * animData.horizontalOffset;
-
-                    // Rotation nhẹ - chỉ xoay trong giới hạn 5 độ
-                    const nextRotX = animData.currentRotation.x + animData.rotationSpeed.x;
-                    const nextRotY = animData.currentRotation.y + animData.rotationSpeed.y;
-                    const nextRotZ = animData.currentRotation.z + animData.rotationSpeed.z;
-
-                    // Kiểm tra giới hạn và đảo chiều nếu cần
-                    if (Math.abs(nextRotX) > Math.abs(animData.maxRotation.x)) {
-                        animData.rotationSpeed.x *= -1;
-                    } else {
-                        animData.currentRotation.x = nextRotX;
-                        mesh.rotation.x = nextRotX;
-                    }
-
-                    if (Math.abs(nextRotY) > Math.abs(animData.maxRotation.y)) {
-                        animData.rotationSpeed.y *= -1;
-                    } else {
-                        animData.currentRotation.y = nextRotY;
-                        mesh.rotation.y = nextRotY;
-                    }
-
-                    if (Math.abs(nextRotZ) > Math.abs(animData.maxRotation.z)) {
-                        animData.rotationSpeed.z *= -1;
-                    } else {
-                        animData.currentRotation.z = nextRotZ;
-                        mesh.rotation.z = nextRotZ;
-                    }
-
-                    // Update reset logic in useFrame
-                    if (mesh.position.y < -12) {
-                        mesh.position.y = 25; // Fixed height for reset
-                        mesh.position.x = text.position[0]; // Remove random offset
-                        mesh.position.z = text.position[2]; // Remove random offset
-                        animData.currentTime = 0;
-                        animData.startDelay = 0.2; // Fixed delay for more consistency
-                    }
-                }
-            }
-        });
-
-        // Enhanced animation cho hearts
-        if (heartsRef.current) {
-            heartsRef.current.children.forEach((heart, index) => {
-                const animData = heartAnimationData.current[index];
-                animData.currentTime += delta;
-
-                if (animData.currentTime > animData.startDelay) {
-                    // Chuyển động rơi đều
-                    heart.position.y -= animData.fallSpeed;
-
-                    // Rotation with slight wobble
-                    heart.rotation.y += animData.rotationSpeed;
-                    heart.rotation.z += Math.sin(animData.currentTime * 2) * 0.01;
-
-                    // Chuyển động ngang nhẹ với pattern phức tạp hơn
-                    heart.position.x += Math.sin(animData.currentTime * 1.5) * animData.horizontalOffset;
-                    heart.position.z += Math.cos(animData.currentTime * 0.8) * animData.horizontalOffset * 0.5;
-
-                    // Reset position
-                    if (heart.position.y < -12) {
-                        heart.position.y = getRandomFloat(15, 25);
-                        heart.position.x = animData.initialPosition.x;
-                        heart.position.z = animData.initialPosition.z;
-                        animData.currentTime = 0;
-                        animData.startDelay = getRandomFloat(0, 3);
-                    }
-                }
-            });
-        }
-    });
-
-    return (
-        <>
-            <LoveSparkles />
-            <group ref={groupRef}>
-                {texts.map((text, index) => (
-                    <Text
-                        key={`text-${index}`}
-                        position={[
-                            text.position[0],
-                            textAnimationData.current[index].initialY,
-                            text.position[2]
-                        ]}
-                        fontSize={text.size}
-                        color="white"
-                        anchorX="center"
-                        anchorY="middle"
-                        maxWidth={12} // Reduced from 20
-                        textAlign="center"
-                        outlineWidth={0.02} // Reduced from 0.02
-                        outlineColor="#000000"
-                        castShadow
-                        receiveShadow
-                    >
-                        {text.content}
-                    </Text>
-                ))}
-            </group>
-            <group ref={heartsRef}>
-                {Array.from({ length: NUM_HEARTS }).map((_, index) => (
-                    <group
-                        key={`heart-${index}`}
-                        position={[
-                            heartAnimationData.current[index].initialPosition.x,
-                            heartAnimationData.current[index].initialY,
-                            heartAnimationData.current[index].initialPosition.z
-                        ]}
-                        scale={[
-                            heartAnimationData.current[index].scale,
-                            heartAnimationData.current[index].scale,
-                            heartAnimationData.current[index].scale
-                        ]}
-                    >
-                        <HeartShape scale={heartAnimationData.current[index].scale} />
-                    </group>
-                ))}
-            </group>
-        </>
-    );
-};
-
-const QRCodeOverlay = () => {
-    const [showQR, setShowQR] = useState(false);
-    const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
-
-    return (
-        <div style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 1000
-        }}>
-            <button
-                onClick={() => setShowQR(!showQR)}
-                style={{
-                    padding: '10px',
-                    borderRadius: '5px',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    color: 'white',
-                    cursor: 'pointer'
-                }}
-            >
-                {showQR ? 'Hide QR' : 'Show QR'}
-            </button>
-
-            {showQR && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: '50px',
-                    right: '0',
-                    background: 'white',
-                    padding: '10px',
-                    borderRadius: '5px'
-                }}>
-                    <QRCodeSVG value={pageUrl} size={128} />
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default function HomePage() {
-    const [texts, setTexts] = useState([]);
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false); // Initialize as false
-    const audioRef = useRef(null);
-    const buttonRef = useRef(null);
-
-    // Initialize and play audio
-    useEffect(() => {
-        audioRef.current = new Audio('/music/nhac.mp3');
-        audioRef.current.loop = true;
-        audioRef.current.volume = 0.5;
-
-        // Attempt to play audio automatically
-        // Browsers might block this without user interaction
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-            playPromise.then(_ => {
-                // Autoplay started!
-                setIsPlaying(true);
-            }).catch(error => {
-                // Autoplay was prevented.
-                console.log("Audio autoplay was prevented:", error);
-                setIsPlaying(false);
-                // You could show a UI element asking the user to click to play music.
-            });
-        }
-
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-        };
-    }, []); // Runs once on component mount
-
-    const toggleMusic = () => {
-        if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.pause();
-            } else {
-                audioRef.current.play().catch(e => console.log("Error playing audio on toggle:", e));
-            }
-            setIsPlaying(!isPlaying);
-        }
+    // Responsive scaling factors
+    const getScalingFactors = () => {
+      const isMobileDevice = isMobile();
+      return {
+        heartScale: isMobileDevice ? 0.004 : 0.002, // Larger heart on mobile
+        imageScale: isMobileDevice ? 0.25 : 0.18, // Larger image on mobile
+        platformScale: isMobileDevice ? 0.4 : 0.3, // Larger platform on mobile
+        textScale: isMobileDevice ? 1.5 : 1, // Larger text on mobile
+        particleDensity: isMobileDevice ? 0.6 : 1 // Reduce particles on mobile
+      };
     };
 
-    // Update text generation in useEffect
-    useEffect(() => {
-        const generatedTexts = Array.from({ length: NUM_TEXTS }).map((_, index) => ({
-            content: ['I love you', ' 💞Mai Anh 💞', "21-01-2003", "我爱你"][getRandom(0, 4)] || 'Mai Anh',
-            position: [
-                getRandomFloat(-SPREAD_FACTOR, SPREAD_FACTOR),
-                0,
-                getRandomFloat(-SPREAD_FACTOR, SPREAD_FACTOR)
-            ],
-            size: getRandomFloat(0.75, 1), // Reduced from 1, 1.5
-        }));
-        setTexts(generatedTexts);
-        setIsLoaded(true);
-    }, []);
+    const scales = getScalingFactors();
 
-    if (!isLoaded) {
-        return <div>Loading...</div>;
+    // Set canvas size to window size
+    const updateCanvasSize = () => {
+      const pixelRatio = window.devicePixelRatio || 1;
+      const width = window.innerWidth * pixelRatio;
+      const height = window.innerHeight * pixelRatio;
+      
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      
+      ctx.scale(pixelRatio, pixelRatio);
+    };
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+
+    // Điều chỉnh vị trí trung tâm
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Điều chỉnh kích thước trái tim - giảm scale
+    const HEART_SCALE = Math.min(canvas.width, canvas.height) * scales.heartScale;
+
+    // Cập nhật hàm createHeartShape
+    const createHeartShape = (t) => {
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      return { 
+        x: x * HEART_SCALE * 8 + centerX, 
+        y: y * HEART_SCALE * 8 + centerY * 0.8 // Điều chỉnh từ 0.5 lên 0.8 để đưa trái tim xuống
+      };
+    };
+
+    // Generate heart particles
+    const generateHeartParticles = () => {
+      const particles = [];
+      const stepSize = isMobile() ? 0.04 : 0.02; // Fewer points on mobile
+      for (let t = 0; t < Math.PI * 2; t += stepSize) {
+        const point = createHeartShape(t);
+        const particleCount = Math.floor(8 * scales.particleDensity);
+        for (let i = 0; i < particleCount; i++) { // Changed from 5 to 8 particles per point
+          const offsetX = (Math.random() - 0.5) * 40; // Increased spread from 30 to 40
+          const offsetY = (Math.random() - 0.5) * 40;
+          particles.push(new Particle(point.x + offsetX, point.y + offsetY, point));
+        }
+      }
+      return particles;
+    };
+
+    // Platform particles
+    const generatePlatformParticles = () => {
+      const particles = [];
+      const platformY = centerY * 1.6; // Điều chỉnh từ 1.1 lên 1.4
+      const platformWidth = centerX * 0.6;
+      
+      for (let i = 0; i < 50; i++) {
+        const referencePoint = {
+          x: centerX + (Math.random() - 0.5) * platformWidth,
+          y: platformY + (Math.random() - 0.5) * 10
+        };
+        // Pass referencePoint to Particle constructor
+        particles.push(new Particle(
+          referencePoint.x, 
+          referencePoint.y, 
+          referencePoint
+        ));
+      }
+      return particles;
+    };
+
+    // Create bubble
+    const createBubble = () => {
+      return {
+        x: centerX + (Math.random() - 0.5) * centerX * 0.8,
+        y: centerY * 1.6, // Điều chỉnh từ 1.1 lên 1.4 để khớp với platform
+        size: Math.random() * (centerY * 0.015) + centerY * 0.005, // Điều chỉnh kích thước
+        speed: Math.random() * 1.5 + 0.8, // Điều chỉnh tốc độ
+        opacity: Math.random() * 0.4 + 0.6 // Điều chỉnh độ trong suốt
+      };
+    };
+
+    let time = 0;
+    let heartParticles = generateHeartParticles();
+    let platformParticles = generatePlatformParticles();
+    platformBubblesRef.current = Array(50).fill().map(() => createBubble()); // Tăng từ 30 lên 50
+
+    // Thêm hàm vẽ trái tim với góc xoay
+    const drawRotatedHeart = (ctx, time) => {
+      // Draw heart particles first
+      ctx.save();
+      ctx.translate(centerX, centerY * 0.7);
+      const scaleX = Math.cos(rotationRef.current);
+      ctx.scale(scaleX * 1.2, 1.2);
+      ctx.translate(-centerX, -centerY * 0.7);
+
+      // Draw first layer of heart particles
+      heartParticles.slice(0, Math.floor(heartParticles.length / 2)).forEach(particle => {
+        particle.draw(ctx);
+      });
+
+      ctx.restore();
+
+      // Draw image in middle (between particle layers)
+      if (imageRef.current.complete) {
+        ctx.save();
+        const imgSize = centerY * scales.imageScale; // Reduced size more for better fit
+        const imgX = centerX - imgSize / 2;
+        const imgY = centerY * 0.95; // Moved down further from 0.85 to 0.95
+
+        // Add white border glow before clipping
+        ctx.beginPath();
+        ctx.arc(centerX, imgY, imgSize / 2 + 2, 0, Math.PI * 2); // Slightly larger circle for border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Add outer glow for border
+        ctx.beginPath();
+        ctx.arc(centerX, imgY, imgSize / 2 + 3, 0, Math.PI * 2);
+        const borderGlow = ctx.createRadialGradient(
+          centerX, imgY, imgSize / 2,
+          centerX, imgY, imgSize / 2 + 6
+        );
+        borderGlow.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        borderGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.strokeStyle = borderGlow;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Create clipping path for image
+        ctx.beginPath();
+        ctx.arc(centerX, imgY, imgSize / 2, 0, Math.PI * 2);
+        ctx.clip();
+
+        // Draw image
+        ctx.drawImage(
+          imageRef.current,
+          imgX,
+          imgY - imgSize / 2,
+          imgSize,
+          imgSize
+        );
+
+        // Add inner glow
+        const imageGlow = ctx.createRadialGradient(
+          centerX,
+          imgY,
+          imgSize / 2 * 0.4,
+          centerX,
+          imgY,
+          imgSize / 2 * 1.5
+        );
+        imageGlow.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        imageGlow.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+
+        ctx.fillStyle = imageGlow;
+        ctx.fill();
+
+        ctx.restore();
+
+        // Update text position to match new image position
+        ctx.save();
+        ctx.font = `${imgSize * 0.25}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; // Slightly more transparent
+        
+        // Even softer text glow
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.2)';
+        ctx.shadowBlur = 10;
+        
+        const textY = imgY + imgSize / 2 + 8; // Slightly more spacing
+        ctx.fillText('❤️❤️ Mai Anh ❤️❤️', centerX, textY);
+        ctx.restore();
+      }
+
+      // Draw second layer of heart particles
+      ctx.save();
+      ctx.translate(centerX, centerY * 0.7);
+      ctx.scale(scaleX * 1.2, 1.2);
+      ctx.translate(-centerX, -centerY * 0.7);
+
+      // Draw remaining heart particles on top
+      heartParticles.slice(Math.floor(heartParticles.length / 2)).forEach(particle => {
+        particle.draw(ctx);
+      });
+
+      ctx.restore();
+    };
+
+    // Cập nhật drawRotatedPlatform
+    const drawRotatedPlatform = (ctx) => {
+      ctx.save();
+      // Move platform position lower
+      ctx.translate(centerX, centerY * 1.6);
+      const scaleX = Math.cos(-rotationRef.current * 0.5);
+      ctx.scale(scaleX * 1.2, 1.2);
+      ctx.translate(-centerX, -centerY * 1.6);
+
+      // Update gradient position
+      const platformGradient = ctx.createRadialGradient(
+        centerX, centerY * 1.6, 0,
+        centerX, centerY * 1.6, centerY * 0.4
+      );
+      platformGradient.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
+      platformGradient.addColorStop(0.7, 'rgba(0, 153, 255, 0.4)');
+      platformGradient.addColorStop(1, 'transparent');
+      
+      // Update platform ellipse positions
+      ctx.beginPath();
+      ctx.ellipse(
+        centerX, 
+        centerY * 1.6, 
+        centerX * scales.platformScale, 
+        centerY * 0.05, 
+        0, 
+        0, 
+        Math.PI * 2
+      );
+      ctx.fillStyle = platformGradient;
+      ctx.fill();
+      
+      // Platform core
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY * 1.6, centerX * 0.25, centerY * 0.04, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 200, 255, 0.6)';
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    // Initialize falling texts
+    const leftTexts = ['I LOVE YOU', 'Mai Anh ❤️', '我爱你', '女朋友'];
+    const rightTexts = ['Mai Anh ❤️', 'I love you ', '女朋友❤️', '我爱你'];
+    
+    // Create multiple columns of falling text
+    leftTextsRef.current = [];
+    rightTextsRef.current = [];
+    
+    // Create 3 columns of falling text on each side
+    for (let col = 0; col < 3; col++) {
+      leftTexts.forEach((text, i) => {
+        leftTextsRef.current.push(
+          new FallingText(
+            text,
+            centerX * (0.15 + col * 0.1), // Multiple columns
+            -i * 100, // Reduced spacing between texts
+            1.5 + Math.random(), // Increased base speed
+            'rgba(255, 255, 255, 1)'
+          )
+        );
+      });
+      
+      rightTexts.forEach((text, i) => {
+        rightTextsRef.current.push(
+          new FallingText(
+            text,
+            centerX * (1.85 - col * 0.1),
+            -i * 100, // Reduced spacing between texts
+            1.5 + Math.random(), // Increased base speed
+            'rgba(255, 255, 255, 1)'
+          )
+        );
+      });
     }
-    return (
-        <div style={{ width: '100vw', height: '100vh', background: '#000000' }}>
-            <button
-                ref={buttonRef}
-                id="toggle-music-button"
-                onClick={toggleMusic}
-                style={{
-                    position: 'fixed',
-                    top: '20px',
-                    right: '20px',
-                    zIndex: 1000,
-                    padding: '10px',
-                    borderRadius: '15px',
-                    border: 'none',
-                    alignItems: 'center',
-                }}
-            >
-                <Image
-                    src="/images/maianh.png"
-                    width={32}
-                    height={32}
-                    alt="Toggle Music"
-                    style={{
-                        animation: 'spin 4s linear infinite',
-                        transition: 'transform 0.3s ease',
-                        ':hover': {
-                            transform: 'scale(1.1)'
-                        },
-                        top: '20px',
-                        right: '20px',
-                    }}
-                />
-            </button>
-            <Canvas
-                camera={{
-                    position: [0, 0, 35],
-                    fov: 45,
-                    near: 0.1,
-                    far: 1000
-                }}
-                shadows
-                shadowMap={{
-                    enabled: true,
-                    type: THREE.PCFSoftShadowMap // Softer shadows
-                }}
-            >
-                <color attach="background" args={['#000000']} />
-                <fogExp2 attach="fog" args={['#000000', 0.002]} />
 
-                {/* Enhanced Lighting for better shadows */}
-                <ambientLight intensity={0.3} />
-                <directionalLight
-                    position={[5, 15, 5]}
-                    intensity={1.2}
-                    castShadow
-                    shadow-mapSize-width={2048}
-                    shadow-mapSize-height={2048}
-                    shadow-camera-far={50}
-                    shadow-camera-left={-20}
-                    shadow-camera-right={20}
-                    shadow-camera-top={20}
-                    shadow-camera-bottom={-20}
-                    shadow-bias={-0.0001}
-                />
-                <pointLight
-                    position={[10, 10, 10]}
-                    intensity={0.8}
-                    castShadow
-                    shadow-mapSize-width={1024}
-                    shadow-mapSize-height={1024}
-                />
-                <spotLight
-                    position={[-10, 10, -10]}
-                    angle={0.5}
-                    intensity={0.6}
-                    castShadow
-                    penumbra={1}
-                    shadow-mapSize-width={1024}
-                    shadow-mapSize-height={1024}
-                />
-
-                <Scene texts={texts} />
-
-                {/* Enhanced Post Processing Effects */}
-                <EffectComposer>
-                    <Bloom
-                        intensity={2.0}
-                        luminanceThreshold={0.03}
-                        luminanceSmoothing={0.9}
-                        height={300}
-                    />
-                    <DepthOfField
-                        focusDistance={0.03}
-                        focalLength={0.08}
-                        bokehScale={2}
-                        height={480}
-                    />
-                </EffectComposer>
-
-                <OrbitControls
-                    enableZoom={true}
-                    minDistance={15}
-                    maxDistance={50}
-                />
-            </Canvas>
-            <QRCodeOverlay />
-            <style jsx global>{`
-                @keyframes spin {
-                    from {
-                        transform: rotate(0deg);
-                    }
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-            `}</style>
-        </div>
+    // Initialize falling hearts
+    fallingHeartsRef.current = Array(30).fill().map(() => 
+      new FallingHeart(
+        Math.random() * window.innerWidth,
+        Math.random() * window.innerHeight
+      )
     );
-}
+
+    // Update the animate function to clear the canvas completely each frame
+    const animate = () => {
+      // Clear canvas completely instead of leaving trails
+      ctx.fillStyle = 'rgba(0, 0, 0, 1)'; // Change from 0.1 to 1 for complete clear
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+      time += 0.02;
+      // Cập nhật góc xoay
+      rotationRef.current += 0.02; // Có thể điều chỉnh tốc độ này
+
+      // Update heart particles
+      heartParticles = heartParticles.filter(particle => {
+        particle.update();
+        return particle.life > 0;
+      });
+
+      // Vẽ trái tim với xoay
+      drawRotatedHeart(ctx, time);
+
+      // Update and draw platform particles
+      platformParticles = platformParticles.filter(particle => {
+        particle.update();
+        particle.draw(ctx);
+        return particle.life > 0;
+      });
+
+      // Add new platform particles
+      if (platformParticles.length < 100) {
+        const newParticles = generatePlatformParticles();
+        platformParticles.push(...newParticles.slice(0, 5));
+      }
+
+      // Update and draw bubbles
+      platformBubblesRef.current = platformBubblesRef.current.filter(bubble => {
+        bubble.y -= bubble.speed;
+        bubble.opacity -= 0.008; // Giảm từ 0.01 xuống 0.008 để bong bóng tồn tại lâu hơn
+        
+        if (bubble.opacity <= 0) return false;
+        
+        // Draw bubble
+        ctx.save();
+        ctx.globalAlpha = bubble.opacity;
+        
+        // Bubble glow
+        const bubbleGradient = ctx.createRadialGradient(
+          bubble.x, bubble.y, 0,
+          bubble.x, bubble.y, bubble.size * 2
+        );
+        bubbleGradient.addColorStop(0, 'rgba( 255, 0,0, 0.8)');
+        bubbleGradient.addColorStop(0.5, 'rgba(0, 153, 255, 0.4)');
+        bubbleGradient.addColorStop(1, 'transparent');
+        
+        ctx.beginPath();
+        ctx.arc(bubble.x, bubble.y, bubble.size * 2, 0, Math.PI * 2);
+        ctx.fillStyle = bubbleGradient;
+        ctx.fill();
+        
+        ctx.restore();
+        return true;
+      });
+      
+      // Add new bubbles
+      if (Math.random() < 0.35) { // Tăng từ 0.25 lên 0.35 (35% mỗi frame)
+        platformBubblesRef.current.push(createBubble());
+        // Thêm nhiều bong bóng cùng lúc
+        if (Math.random() < 0.6) { // Tăng từ 0.5 lên 0.6 (60% cơ hội)
+          platformBubblesRef.current.push(createBubble());
+          if (Math.random() < 0.4) { // 40% cơ hội thêm bong bóng thứ ba
+            platformBubblesRef.current.push(createBubble());
+          }
+        }
+      }
+
+      // Update and draw falling texts
+      leftTextsRef.current.forEach(text => {
+        text.update(canvas.height);
+        text.draw(ctx);
+      });
+
+      rightTextsRef.current.forEach(text => {
+        text.update(canvas.height);
+        text.draw(ctx);
+      });
+
+      // Vẽ platform với xoay
+      drawRotatedPlatform(ctx);
+
+      // Add floating sparkles
+      for (let i = 0; i < 5; i++) {
+        const sparkleX = Math.random() * canvas.width;
+        const sparkleY = Math.random() * canvas.height;
+        const sparkleSize = Math.random() * 2 + 1;
+        
+        ctx.save();
+        ctx.globalAlpha = Math.sin(time * 3 + i) * 0.5 + 0.5;
+        ctx.beginPath();
+        ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Randomly add new complete texts
+      if (Math.random() < 0.03) { // Reduced chance for less frequent spawning
+        const side = Math.random() < 0.5;
+        const texts = side ? leftTexts : rightTexts;
+        const text = texts[Math.floor(Math.random() * texts.length)];
+        const ref = side ? leftTextsRef : rightTextsRef;
+        const x = side ? 
+          centerX * (0.15 + Math.random() * 0.2) : 
+          centerX * (1.75 + Math.random() * 0.2);
+        
+        ref.current.push(
+          new FallingText(
+            text,
+            x,
+            -50,
+            1.2 + Math.random(), // Slightly faster speed
+            'rgba(255, 255, 255, 1)'
+          )
+        );
+      }
+
+      // Update and draw falling hearts
+      fallingHeartsRef.current.forEach(heart => {
+        heart.update(canvas.height);
+        heart.draw(ctx);
+      });
+
+      // Add new hearts occasionally
+      if (Math.random() < 0.1) {
+        fallingHeartsRef.current.push(
+          new FallingHeart(
+            Math.random() * canvas.width,
+            -50
+          )
+        );
+      }
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    // Initial clear
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    animate();
+
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Update the container style
+  return (
+    <div className="fixed inset-0 bg-black touch-none">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        style={{
+          filter: 'blur(0.5px)',
+          background: 'radial-gradient(circle at center, #001122 0%, #000000 100%)',
+          touchAction: 'none' // Prevent default touch behaviors
+        }}
+      />
+      <div className="absolute inset-0 pointer-events-none">
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          style={{
+            width: '200px',
+            height: '200px',
+            background: 'radial-gradient(circle, rgba(0,255,255,0.1) 0%, transparent 70%)',
+            borderRadius: '50%',
+            animation: 'pulse 2s ease-in-out infinite alternate'
+          }}
+        />
+      </div>
+      
+      <style jsx>{`
+        @keyframes pulse {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+          100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.1; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default GlowingHeartAnimation;
