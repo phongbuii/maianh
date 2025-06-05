@@ -12,12 +12,12 @@ const GlowingHeart = () => {
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
   const rotationSpeedRef = useRef({ x: 0, y: 0 });
   const currentRotationRef = useRef({ x: 0, y: 0 });
-  const mainGroupRef = useRef(null); // Ref cho group chính chứa tất cả elements
-  const autoRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Thêm ref cho auto rotation
-  const originalRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Lưu vị trí ban đầu
-  const targetRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Vị trí target để lerp về
+  const mainGroupRef = useRef(null);
+  const autoRotationRef = useRef({ x: 0, y: 0, z: 0 });
+  const originalRotationRef = useRef({ x: 0, y: 0, z: 0 });
+  const targetRotationRef = useRef({ x: 0, y: 0, z: 0 });
   const dampingFactor = 0.95; // For smooth rotation decay
-  const returnSpeed = 0.02; // Tốc độ quay về vị trí ban đầu
+  const returnSpeed = 0.02;
 
   // Define event handlers outside useEffect
   const handleMouseDown = (event) => {
@@ -328,11 +328,11 @@ const GlowingHeart = () => {
       const texture = new THREE.CanvasTexture(canvas);
       texture.needsUpdate = true;
 
-      // Create sprite material
+      // Create sprite material with INCREASED opacity
       const spriteMaterial = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.95, // Increased from 0.8 to 0.95 for better visibility
         blending: THREE.AdditiveBlending
       });
 
@@ -680,7 +680,7 @@ const GlowingHeart = () => {
         droplet.scale.setScalar(scalePulse);
       });
 
-      // Animate falling text
+      // Animate falling text with INCREASED opacity throughout
       if (textMeshes) {
         textMeshes.forEach((text, index) => {
           const userData = text.userData;
@@ -704,14 +704,14 @@ const GlowingHeart = () => {
             // Gentle swaying motion
             text.position.x += Math.sin(times * userData.swaySpeed + index) * userData.swayAmount;
 
-            // Fade in/out
+            // Enhanced fade in/out with higher minimum opacity
             const fadeDistance = 5;
             if (text.position.y > 20) {
-              text.material.opacity = Math.max(0, (25 - text.position.y) / fadeDistance);
+              text.material.opacity = Math.max(0.5, (25 - text.position.y) / fadeDistance * 0.95); // Increased minimum opacity
             } else if (text.position.y < -15) {
-              text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
+              text.material.opacity = Math.max(0.3, (text.position.y + 20) / fadeDistance * 0.95); // Increased minimum opacity
             } else {
-              text.material.opacity = 0.6 + Math.sin(times * 3 + index) * 0.2; // Twinkling effect
+              text.material.opacity = 0.8 + Math.sin(times * 3 + index) * 0.15; // Increased base opacity to 0.8
             }
           }
         });
