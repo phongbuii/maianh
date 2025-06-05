@@ -12,7 +12,12 @@ const GlowingHeart = () => {
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
   const rotationSpeedRef = useRef({ x: 0, y: 0 });
   const currentRotationRef = useRef({ x: 0, y: 0 });
+  const mainGroupRef = useRef(null); // Ref cho group chính chứa tất cả elements
+  const autoRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Thêm ref cho auto rotation
+  const originalRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Lưu vị trí ban đầu
+  const targetRotationRef = useRef({ x: 0, y: 0, z: 0 }); // Vị trí target để lerp về
   const dampingFactor = 0.95; // For smooth rotation decay
+  const returnSpeed = 0.02; // Tốc độ quay về vị trí ban đầu
 
   // Define event handlers outside useEffect
   const handleMouseDown = (event) => {
@@ -36,8 +41,8 @@ const GlowingHeart = () => {
 
     // Update rotation speed based on mouse movement
     rotationSpeedRef.current = {
-      x: deltaMove.y * 0.005,
-      y: deltaMove.x * 0.005
+      x: deltaMove.y * 0.008, // Tăng sensitivity
+      y: deltaMove.x * 0.008
     };
 
     previousMousePositionRef.current = { x: clientX, y: clientY };
@@ -62,6 +67,11 @@ const GlowingHeart = () => {
     // Setup scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
+
+    // Tạo group chính để chứa tất cả elements
+    const mainGroup = new THREE.Group();
+    mainGroupRef.current = mainGroup;
+    scene.add(mainGroup);
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -117,12 +127,12 @@ const GlowingHeart = () => {
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
 
-      // Bright cyan color - slightly dimmer in center
+      // Bright white color - slightly dimmer in center
       const centerDim = radiusBias * 0.3 + 0.7;
-      const intensity = (0.7 + Math.random() * 0.3) * centerDim;
-      colors[i * 3] = intensity * 0.2;     // R
-      colors[i * 3 + 1] = intensity * 0.9; // G
-      colors[i * 3 + 2] = intensity;       // B
+      const intensity = (0.8 + Math.random() * 0.2) * centerDim; // Tăng intensity cho trắng sáng hơn
+      colors[i * 3] = intensity;     // R - Full white
+      colors[i * 3 + 1] = intensity; // G - Full white  
+      colors[i * 3 + 2] = intensity; // B - Full white
     }
 
     heartGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -140,7 +150,7 @@ const GlowingHeart = () => {
 
     const heart = new THREE.Points(heartGeometry, heartMaterial);
     heart.position.y = 1;
-    scene.add(heart);
+    mainGroup.add(heart); // Add to main group thay vì scene
 
     // Create heart shadow using tiny bubbles
     const shadowGroup = new THREE.Group();
@@ -232,7 +242,7 @@ const GlowingHeart = () => {
       shadowGroup.add(bubble);
     }
 
-    scene.add(shadowGroup);
+    mainGroup.add(shadowGroup); // Add to main group
 
     // Few floating sparkles - water droplets
     const sparkleGroup = new THREE.Group();
@@ -283,11 +293,11 @@ const GlowingHeart = () => {
       sparkleGroup.add(droplet);
     }
 
-    scene.add(sparkleGroup);
+    mainGroup.add(sparkleGroup); // Add to main group
 
     // Create falling text
     const textGroup = new THREE.Group();
-    const texts = ['❤️ Mai Anh ❤️', 'I love you', '我爱你', 'Mai Anh'];
+    const texts = ['❤️ Mai Anh ❤️', 'I love you', '我爱你', 'Mai Anh', 'Mãi yêu em'];
     const textMeshes = [];
     const textCount = 200; // Increased from 60 to 200 for more dense text rain
 
@@ -303,7 +313,7 @@ const GlowingHeart = () => {
 
       // Style text
       context.font = 'Bold 64px Arial'; // Increased from 48px
-      context.fillStyle = '#ff66aa';
+      context.fillStyle = '#FF0099';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
 
@@ -337,19 +347,19 @@ const GlowingHeart = () => {
 
       // Store initial position and speed
       sprite.userData = {
-        speed: 0.2 + Math.random() * 0.3, // Increased base speed
+        speed: 0.08 + Math.random() * 0.12, // Giảm từ 0.2-0.5 xuống 0.08-0.2
         initialY: 30 + Math.random() * 20, // Higher starting position
         initialX: (Math.random() - 0.5) * 90,
-        delay: Math.random() * 2, // Add slight random delay for more natural effect
-        swaySpeed: 1.5 + Math.random() * 2.5, // Increased sway speed
-        swayAmount: 0.03 + Math.random() * 0.04 // Increased sway amount
+        delay: Math.random() * 3, // Tăng delay từ 2 lên 3 giây
+        swaySpeed: 0.8 + Math.random() * 1.2, // Giảm từ 1.5-4.0 xuống 0.8-2.0
+        swayAmount: 0.02 + Math.random() * 0.025 // Giảm từ 0.03-0.07 xuống 0.02-0.045
       };
 
       textMeshes.push(sprite);
       textGroup.add(sprite);
     }
 
-    scene.add(textGroup);
+    mainGroup.add(textGroup); // Add to main group
 
     // Create fire effect for heart
     const fireGroup = new THREE.Group();
@@ -420,12 +430,10 @@ const GlowingHeart = () => {
     }
 
     fireGroup.add(fireParticles);
-    scene.add(fireGroup);
+    mainGroup.add(fireGroup); // Add to main group
 
     // Create ocean effect at bottom
     const oceanGroup = new THREE.Group();
-
-
 
     // Ocean particles for foam/sparkle effect
     const foamCount = 50000; // Increased
@@ -466,9 +474,7 @@ const GlowingHeart = () => {
     // Add lights for ocean
     const oceanLight = new THREE.DirectionalLight(0x0066ff, 0.7); // Brighter blue light
     oceanLight.position.set(0, 10, 5);
-    scene.add(oceanLight);
-
-    // scene.add(oceanGroup);
+    mainGroup.add(oceanLight); // Add to main group
 
     // Add after scene creation and before heart creation
     const addLogoAndStars = () => {
@@ -476,36 +482,50 @@ const GlowingHeart = () => {
       const textureLoader = new THREE.TextureLoader();
       const logoTexture = textureLoader.load('/images/maianh.png');
 
-      // Create border geometry (much larger than logo)
-      const borderGeometry = new THREE.CircleGeometry(2.5, 32); // Changed from 2.1 to 2.5
-      const borderMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.95, // Increased from 0.9 to 0.95 for better visibility
-        side: THREE.DoubleSide
-      });
-      const border = new THREE.Mesh(borderGeometry, borderMaterial);
-
-      // Create main logo
-      const logoGeometry = new THREE.CircleGeometry(2, 32);
-      const logoMaterial = new THREE.MeshBasicMaterial({
+      // Tạo logo như một sprite thay vì mesh để luôn nhìn về camera
+      const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
         map: logoTexture,
         transparent: true,
-        opacity: 0.9,
-        side: THREE.DoubleSide
-      });
+        opacity: 0.9
+      }));
+      logoSprite.scale.set(4, 4, 1); // Kích thước logo
 
-      const logo = new THREE.Mesh(logoGeometry, logoMaterial);
+      // Tạo border sprite
+      const borderCanvas = document.createElement('canvas');
+      const borderContext = borderCanvas.getContext('2d');
+      borderCanvas.width = 512;
+      borderCanvas.height = 512;
 
-      // Group logo and border
+      // Vẽ border trắng
+      borderContext.beginPath();
+      borderContext.arc(256, 256, 250, 0, 2 * Math.PI);
+      borderContext.fillStyle = '#ffffff';
+      borderContext.fill();
+
+      // Tạo lỗ trong để logo hiển thị
+      borderContext.globalCompositeOperation = 'destination-out';
+      borderContext.beginPath();
+      borderContext.arc(256, 256, 200, 0, 2 * Math.PI);
+      borderContext.fill();
+
+      const borderTexture = new THREE.CanvasTexture(borderCanvas);
+      const borderSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: borderTexture,
+        transparent: true,
+        opacity: 0.95
+      }));
+      borderSprite.scale.set(5, 5, 1); // Lớn hơn logo một chút
+
+      // Group logo và border - KHÔNG add vào mainGroup
       const logoGroup = new THREE.Group();
-      logoGroup.add(border);
-      logoGroup.add(logo);
+      logoGroup.add(borderSprite);
+      logoGroup.add(logoSprite);
 
-      // Position the entire group
-      logoGroup.position.set(18, 30, -15); // Changed X from 20 to 15
+      // Position the entire group - THÊM TRỰC TIẾP VÀO SCENE
+      logoGroup.position.set(18, 30, -15);
+      scene.add(logoGroup); // Add trực tiếp vào scene, không vào mainGroup
 
-      // Add multiple glow lights for softer effect
+      // Add multiple glow lights for softer effect - cũng add trực tiếp vào scene
       const glowColors = [
         { color: 0xffffff, intensity: 0.5, distance: 40 },
         { color: 0xffffff, intensity: 0.3, distance: 50 },
@@ -515,39 +535,63 @@ const GlowingHeart = () => {
       glowColors.forEach(({ color, intensity, distance }) => {
         const glow = new THREE.PointLight(color, intensity, distance);
         glow.position.copy(logoGroup.position);
-        scene.add(glow);
+        scene.add(glow); // Add trực tiếp vào scene
       });
 
-      scene.add(logoGroup);
-
-      // Create stars higher up
+      // Create stars covering entire screen
       const starsGroup = new THREE.Group();
-      const starCount = 100;
+      const starCount = 800; // Tăng từ 100 lên 800 sao
 
       for (let i = 0; i < starCount; i++) {
-        const starGeometry = new THREE.SphereGeometry(0.05 + Math.random() * 0.1, 8, 8); // Smaller stars
+        const starGeometry = new THREE.SphereGeometry(0.03 + Math.random() * 0.08, 6, 6); // Nhỏ hơn một chút
         const starMaterial = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.7 + Math.random() * 0.3
+          opacity: 0.6 + Math.random() * 0.4
         });
 
         const star = new THREE.Mesh(starGeometry, starMaterial);
 
-        // Position stars higher
-        star.position.x = (Math.random() - 0.5) * 100;
-        star.position.y = 15 + Math.random() * 25; // Changed from 10+20 to 15+25
-        star.position.z = -20 + Math.random() * 15;
+        // Position stars covering entire screen space - phủ khắp không gian 3D
+        star.position.x = (Math.random() - 0.5) * 200; // Tăng từ 100 lên 200
+        star.position.y = (Math.random() - 0.5) * 150; // Từ 15+25 thành -75 đến +75
+        star.position.z = -50 + Math.random() * 100;   // Tăng từ -20+15 thành -50 đến +50
 
         star.userData = {
-          twinkleSpeed: 0.3 + Math.random() * 0.5,
-          phase: Math.random() * Math.PI * 2
+          twinkleSpeed: 0.2 + Math.random() * 0.6, // Tốc độ nhấp nháy khác nhau
+          phase: Math.random() * Math.PI * 2,
+          originalOpacity: 0.6 + Math.random() * 0.4
         };
 
         starsGroup.add(star);
       }
 
-      scene.add(starsGroup);
+      // Thêm một layer sao nhỏ hơn ở xa
+      for (let i = 0; i < 400; i++) {
+        const smallStarGeometry = new THREE.SphereGeometry(0.015 + Math.random() * 0.03, 4, 4);
+        const smallStarMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.3 + Math.random() * 0.3
+        });
+
+        const smallStar = new THREE.Mesh(smallStarGeometry, smallStarMaterial);
+
+        // Sao nhỏ ở xa hơn
+        smallStar.position.x = (Math.random() - 0.5) * 300;
+        smallStar.position.y = (Math.random() - 0.5) * 200;
+        smallStar.position.z = -80 + Math.random() * 160;
+
+        smallStar.userData = {
+          twinkleSpeed: 0.1 + Math.random() * 0.3,
+          phase: Math.random() * Math.PI * 2,
+          originalOpacity: 0.3 + Math.random() * 0.3
+        };
+
+        starsGroup.add(smallStar);
+      }
+
+      mainGroup.add(starsGroup); // Stars add vào mainGroup để xoay cùng
 
       return { logoGroup, starsGroup };
     };
@@ -562,103 +606,53 @@ const GlowingHeart = () => {
       // Get current time
       const time = Date.now() * 0.001;
 
-      if (isDraggingRef.current) {
-        // Update rotation for heart and all elements
-        const rotationX = rotationSpeedRef.current.x;
-        const rotationY = rotationSpeedRef.current.y;
+      // Auto rotation 3D cho toàn bộ scene
+      if (!isDraggingRef.current) {
+        // Kiểm tra nếu cần quay về vị trí ban đầu
+        const needsReturn =
+          Math.abs(mainGroup.rotation.x - originalRotationRef.current.x) > 0.01 ||
+          Math.abs(mainGroup.rotation.y - originalRotationRef.current.y) > 0.01 ||
+          Math.abs(mainGroup.rotation.z - originalRotationRef.current.z) > 0.01;
 
-        // Rotate heart
-        heart.rotation.x += rotationX;
-        heart.rotation.y += rotationY;
+        if (needsReturn) {
+          // Lerp về vị trí ban đầu
+          mainGroup.rotation.x += (originalRotationRef.current.x - mainGroup.rotation.x) * returnSpeed;
+          mainGroup.rotation.y += (originalRotationRef.current.y - mainGroup.rotation.y) * returnSpeed;
+          mainGroup.rotation.z += (originalRotationRef.current.z - mainGroup.rotation.z) * returnSpeed;
+        } else {
+          // Tự động xoay chậm và mượt khi đã về vị trí ban đầu
+          autoRotationRef.current.x += 0.002;
+          autoRotationRef.current.y += 0.003;
+          autoRotationRef.current.z += 0.001;
 
-        // Rotate fire particles
-        if (fireParticles) {
-          fireParticles.rotation.copy(heart.rotation);
-        }
+          // Apply auto rotation to main group
+          mainGroup.rotation.x = Math.sin(autoRotationRef.current.x) * 0.1;
+          mainGroup.rotation.y = autoRotationRef.current.y;
+          mainGroup.rotation.z = Math.sin(autoRotationRef.current.z) * 0.05;
 
-        // Rotate shadow
-        if (shadowGroup) {
-          shadowGroup.rotation.copy(heart.rotation);
-        }
-
-        // Rotate text group with offset
-        if (textGroup) {
-          textGroup.children.forEach((text, index) => {
-            // Add rotation while maintaining falling animation
-            text.rotation.x = heart.rotation.x * 0.5; // Half rotation for subtle effect
-            text.rotation.y = heart.rotation.y * 0.5;
-
-            // Update text position and animation
-            const userData = text.userData;
-            if (time > userData.delay) {
-              text.position.y -= userData.speed;
-
-              // Reset position when text goes off screen
-              if (text.position.y < -17) {
-                text.position.y = 30 + Math.random() * 20;
-                text.position.x = (Math.random() - 0.5) * 70;
-                text.position.z = (Math.random() - 0.5) * 40;
-                userData.speed = 0.15 + Math.random() * 0.25;
-              }
-
-              // Enhanced swaying motion based on rotation
-              const swayAmount = userData.swayAmount * (1 + Math.abs(rotationSpeedRef.current.y));
-              text.position.x += Math.sin(time * userData.swaySpeed + index) * swayAmount;
-
-              // Fade based on position and rotation
-              const fadeDistance = 5;
-              if (text.position.y > 20) {
-                text.material.opacity = Math.max(0, (25 - text.position.y) / fadeDistance);
-              } else if (text.position.y < -15) {
-                text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
-              } else {
-                text.material.opacity = 0.6 + Math.sin(time * 3 + index) * 0.2;
-              }
-            }
-          });
-        }
-      } else {
-        // Default animation when not dragging
-        heart.rotation.y += 0.02;
-
-        // Synchronize all elements
-        if (fireParticles) fireParticles.rotation.y = heart.rotation.y;
-        if (shadowGroup) shadowGroup.rotation.y = heart.rotation.y;
-        if (textGroup) {
-          textGroup.children.forEach((text, index) => {
-            // Add gentle rotation while falling
-            text.rotation.y = heart.rotation.y * 0.5;
-
-            // Continue normal falling animation
-            const userData = text.userData;
-            if (time > userData.delay) {
-              text.position.y -= userData.speed;
-
-              if (text.position.y < -17) {
-                text.position.y = 30 + Math.random() * 20;
-                text.position.x = (Math.random() - 0.5) * 70;
-                text.position.z = (Math.random() - 0.5) * 40;
-                userData.speed = 0.15 + Math.random() * 0.25;
-              }
-
-              text.position.x += Math.sin(time * userData.swaySpeed + index) * userData.swayAmount;
-
-              const fadeDistance = 5;
-              if (text.position.y > 20) {
-                text.material.opacity = Math.max(0, (25 - text.position.y) / fadeDistance);
-              } else if (text.position.y < -15) {
-                text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
-              } else {
-                text.material.opacity = 0.6 + Math.sin(time * 3 + index) * 0.2;
-              }
-            }
-          });
+          // Cập nhật original rotation để theo dõi auto rotation
+          originalRotationRef.current.x = mainGroup.rotation.x;
+          originalRotationRef.current.y = mainGroup.rotation.y;
+          originalRotationRef.current.z = mainGroup.rotation.z;
         }
       }
 
-      // Float up and down
-      const float = Math.sin(Date.now() * 0.001) * 0.3;
-      heart.position.y = 1 + float;
+      if (isDraggingRef.current) {
+        // Update rotation for entire main group when dragging
+        mainGroup.rotation.x += rotationSpeedRef.current.x;
+        mainGroup.rotation.y += rotationSpeedRef.current.y;
+
+        // Apply damping to rotation speed
+        rotationSpeedRef.current.x *= dampingFactor;
+        rotationSpeedRef.current.y *= dampingFactor;
+      }
+
+      // Heart-specific animations
+      const heartFloat = Math.sin(Date.now() * 0.001) * 0.3;
+      heart.position.y = 1 + heartFloat;
+
+      // Heart rotation (independent of main group rotation)
+      heart.rotation.y += 0.02;
 
       // Animate shadow to follow heart rotation
       if (shadowGroup) {
@@ -670,19 +664,19 @@ const GlowingHeart = () => {
       }
 
       // Animate floating bubbles
-      const time = Date.now() * 0.001;
+      const times = Date.now() * 0.001;
       sparkleGroup.children.forEach((droplet, i) => {
         const userData = droplet.userData;
         // Floating motion - slower and smoother
         droplet.position.y = userData.initialY +
-          Math.sin(time * userData.floatSpeed + userData.phase) * userData.floatAmount;
+          Math.sin(times * userData.floatSpeed + userData.phase) * userData.floatAmount;
 
         // Very gentle rotation
         droplet.rotation.x += 0.003;
         droplet.rotation.y += 0.005;
 
         // Subtle scale breathing
-        const scalePulse = 1 + Math.sin(time * 1.5 + i) * 0.05;
+        const scalePulse = 1 + Math.sin(times * 1.5 + i) * 0.05;
         droplet.scale.setScalar(scalePulse);
       });
 
@@ -692,7 +686,7 @@ const GlowingHeart = () => {
           const userData = text.userData;
 
           // Only start falling after delay
-          if (time > userData.delay) {
+          if (times > userData.delay) {
             // Fall down
             text.position.y -= userData.speed;
 
@@ -701,14 +695,14 @@ const GlowingHeart = () => {
               text.position.y = 30 + Math.random() * 20; // Start higher
               text.position.x = (Math.random() - 0.5) * 70; // Wider spread
               text.position.z = (Math.random() - 0.5) * 40;
-              userData.speed = 0.15 + Math.random() * 0.25; // New random speed (faster)
+              userData.speed = 0.08 + Math.random() * 0.12; // Giảm tốc độ reset (chậm hơn)
 
               // Create splash effect
               text.material.opacity = 0;
             }
 
             // Gentle swaying motion
-            text.position.x += Math.sin(time * userData.swaySpeed + index) * userData.swayAmount;
+            text.position.x += Math.sin(times * userData.swaySpeed + index) * userData.swayAmount;
 
             // Fade in/out
             const fadeDistance = 5;
@@ -717,13 +711,11 @@ const GlowingHeart = () => {
             } else if (text.position.y < -15) {
               text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
             } else {
-              text.material.opacity = 0.6 + Math.sin(time * 3 + index) * 0.2; // Twinkling effect
+              text.material.opacity = 0.6 + Math.sin(times * 3 + index) * 0.2; // Twinkling effect
             }
           }
         });
       }
-
-      renderer.render(scene, camera);
 
       // Animate fire particles
       if (fireParticles) {
@@ -784,28 +776,6 @@ const GlowingHeart = () => {
         fireParticles.rotation.y = heart.rotation.y;
       }
 
-      // Animate ocean
-      // if (true) {
-      //   oceanGroup.rotation.y = Math.sin(time * 0.3) * 0.1;
-      //   oceanGroup.rotation.z = Math.cos(time * 0.2) * 0.05;
-
-      //   // Animate foam particles
-      //   const foamPos = foam.geometry.attributes.position.array;
-      //   for (let i = 0; i < foamPos.length; i += 3) {
-      //     // Floating with waves
-      //     const x = foamPos[i];
-      //     const z = foamPos[i + 2];
-      //     foamPos[i + 1] = -18 + Math.sin(x * 0.05 + time * 2) * 2 +
-      //       Math.cos(z * 0.05 + time * 1.5) * 2 +
-      //       Math.random() * 0.5;
-
-      //     // Drift
-      //     foamPos[i] += Math.sin(time + i) * 0.02;
-      //     foamPos[i + 2] += Math.cos(time + i) * 0.02;
-      //   }
-      //   foam.geometry.attributes.position.needsUpdate = true;
-      // }
-
       // Animate stars twinkling
       if (starsGroup) {
         const time = Date.now() * 0.001;
@@ -816,14 +786,27 @@ const GlowingHeart = () => {
         });
       }
 
-      // Rotate logo group instead of just logo
+      // Logo animation - CỐ ĐỊNH VỊ TRÍ và LUÔN NHÌN VỀ CAMERA
       if (logoGroup) {
-        logoGroup.rotation.z -= 0.05;
-        // Add subtle pulse to border and logo
-        const pulse = Math.sin(Date.now() * 0.0005) * 0.1 + 0.9;
-        logoGroup.children[0].material.opacity = pulse * 0.8; // Border opacity
-        logoGroup.children[1].material.opacity = pulse; // Logo opacity
+        // Logo sprites tự động nhìn về camera nên không cần xoay
+        // Chỉ cần animation xoay Z và pulse effect
+        const logoSprite = logoGroup.children[1]; // Logo sprite
+        const borderSprite = logoGroup.children[0]; // Border sprite
+
+        if (logoSprite && borderSprite) {
+          logoSprite.material.rotation -= 0.05; // Xoay texture thay vì object
+
+          // Add subtle pulse effect
+          const pulse = Math.sin(Date.now() * 0.0005) * 0.1 + 0.9;
+          borderSprite.material.opacity = pulse * 0.8;
+          logoSprite.material.opacity = pulse;
+
+          // Đảm bảo vị trí cố định
+          logoGroup.position.set(18, 30, -15);
+        }
       }
+
+      renderer.render(scene, camera);
     };
 
     animate();
