@@ -147,7 +147,7 @@ const GlowingHeart = () => {
       const bubbleGeometry = new THREE.SphereGeometry(bubbleSize, 3, 3);
 
       const bubbleMaterial = new THREE.MeshBasicMaterial({
-        color: 0xd00fff, // Dark blue color
+        color: 0xf02233, // Dark blue color
         transparent: true,
         opacity: 0.5, // Fixed opacity
         blending: THREE.NormalBlending // Normal blending
@@ -241,7 +241,7 @@ const GlowingHeart = () => {
     const textGroup = new THREE.Group();
     const texts = ['❤️ Mai Anh ❤️', 'I love you', '我爱你', 'Mai Anh'];
     const textMeshes = [];
-    const textCount = 60; // Increased from 30 to 60 for dense text rain
+    const textCount = 200; // Increased from 60 to 200 for more dense text rain
 
     // Create text sprites
     for (let i = 0; i < textCount; i++) {
@@ -283,18 +283,18 @@ const GlowingHeart = () => {
       sprite.scale.set(8, 2, 1); // Reduced size slightly from 10, 2.5 to fit more text
 
       // Random position across the screen - spread even more
-      sprite.position.x = (Math.random() - 0.5) * 80; // Increased from 70 to 80
-      sprite.position.y = -30 + Math.random() * 70; // Start from -30 to 40 for better distribution
-      sprite.position.z = -15 + Math.random() * 30; // Adjusted Z for better visibility
+      sprite.position.x = (Math.random() - 0.5) * 100; // Increased spread from 80 to 100
+      sprite.position.y = -30 + Math.random() * 100; // Increased height range from 70 to 100
+      sprite.position.z = -20 + Math.random() * 40; // Increased depth from 30 to 40
 
       // Store initial position and speed
       sprite.userData = {
-        speed: 0.15 + Math.random() * 0.25, // Increased speed: 0.15-0.4 (was 0.08-0.2)
-        initialY: 20 + Math.random() * 10,
-        initialX: (Math.random() - 0.5) * 70,
-        delay: 0, // No initial delay for immediate falling
-        swaySpeed: 1 + Math.random() * 2,
-        swayAmount: 0.02 + Math.random() * 0.03
+        speed: 0.2 + Math.random() * 0.3, // Increased base speed
+        initialY: 30 + Math.random() * 20, // Higher starting position
+        initialX: (Math.random() - 0.5) * 90,
+        delay: Math.random() * 2, // Add slight random delay for more natural effect
+        swaySpeed: 1.5 + Math.random() * 2.5, // Increased sway speed
+        swayAmount: 0.03 + Math.random() * 0.04 // Increased sway amount
       };
 
       textMeshes.push(sprite);
@@ -455,7 +455,7 @@ const GlowingHeart = () => {
       logoGroup.add(logo);
 
       // Position the entire group
-      logoGroup.position.set(15, 30, -10); // Changed X from 20 to 15
+      logoGroup.position.set(18, 30, -15); // Changed X from 20 to 15
 
       // Add multiple glow lights for softer effect
       const glowColors = [
