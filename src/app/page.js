@@ -3,13 +3,61 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 const GlowingHeart = () => {
+  // Keep the refs at the top
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
   const frameRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const previousMousePositionRef = useRef({ x: 0, y: 0 });
+  const rotationSpeedRef = useRef({ x: 0, y: 0 });
+  const currentRotationRef = useRef({ x: 0, y: 0 });
+  const dampingFactor = 0.95; // For smooth rotation decay
+
+  // Define event handlers outside useEffect
+  const handleMouseDown = (event) => {
+    isDraggingRef.current = true;
+    previousMousePositionRef.current = {
+      x: event.clientX || (event.touches ? event.touches[0].clientX : 0),
+      y: event.clientY || (event.touches ? event.touches[0].clientY : 0)
+    };
+  };
+
+  const handleMouseMove = (event) => {
+    if (!isDraggingRef.current) return;
+
+    const clientX = event.clientX || (event.touches ? event.touches[0].clientX : 0);
+    const clientY = event.clientY || (event.touches ? event.touches[0].clientY : 0);
+
+    const deltaMove = {
+      x: clientX - previousMousePositionRef.current.x,
+      y: clientY - previousMousePositionRef.current.y
+    };
+
+    // Update rotation speed based on mouse movement
+    rotationSpeedRef.current = {
+      x: deltaMove.y * 0.005,
+      y: deltaMove.x * 0.005
+    };
+
+    previousMousePositionRef.current = { x: clientX, y: clientY };
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
 
   useEffect(() => {
     if (!mountRef.current) return;
+
+    // Add event listeners here
+    const mount = mountRef.current;
+    mount.addEventListener('mousedown', handleMouseDown);
+    mount.addEventListener('touchstart', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
 
     // Setup scene
     const scene = new THREE.Scene();
@@ -36,7 +84,7 @@ const GlowingHeart = () => {
 
     // Create DENSE heart - fill entire volume
     const heartGeometry = new THREE.BufferGeometry();
-    const particleCount = 15000; // Increased from 15000 for smoother look
+    const particleCount = 18000; // Increased from 15000 for smoother look
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
 
@@ -82,7 +130,7 @@ const GlowingHeart = () => {
 
     // Heart material - very small points for density
     const heartMaterial = new THREE.PointsMaterial({
-      size: 0.35, // Increased from 0.29 for softer look
+      size: 0.15, // Increased from 0.29 for softer look
       vertexColors: true,
       blending: THREE.AdditiveBlending,
       transparent: true,
@@ -420,7 +468,7 @@ const GlowingHeart = () => {
     oceanLight.position.set(0, 10, 5);
     scene.add(oceanLight);
 
-    scene.add(oceanGroup);
+    // scene.add(oceanGroup);
 
     // Add after scene creation and before heart creation
     const addLogoAndStars = () => {
@@ -511,8 +559,102 @@ const GlowingHeart = () => {
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
 
-      // Rotate heart only
-      heart.rotation.y += 0.02;
+      // Get current time
+      const time = Date.now() * 0.001;
+
+      if (isDraggingRef.current) {
+        // Update rotation for heart and all elements
+        const rotationX = rotationSpeedRef.current.x;
+        const rotationY = rotationSpeedRef.current.y;
+
+        // Rotate heart
+        heart.rotation.x += rotationX;
+        heart.rotation.y += rotationY;
+
+        // Rotate fire particles
+        if (fireParticles) {
+          fireParticles.rotation.copy(heart.rotation);
+        }
+
+        // Rotate shadow
+        if (shadowGroup) {
+          shadowGroup.rotation.copy(heart.rotation);
+        }
+
+        // Rotate text group with offset
+        if (textGroup) {
+          textGroup.children.forEach((text, index) => {
+            // Add rotation while maintaining falling animation
+            text.rotation.x = heart.rotation.x * 0.5; // Half rotation for subtle effect
+            text.rotation.y = heart.rotation.y * 0.5;
+
+            // Update text position and animation
+            const userData = text.userData;
+            if (time > userData.delay) {
+              text.position.y -= userData.speed;
+
+              // Reset position when text goes off screen
+              if (text.position.y < -17) {
+                text.position.y = 30 + Math.random() * 20;
+                text.position.x = (Math.random() - 0.5) * 70;
+                text.position.z = (Math.random() - 0.5) * 40;
+                userData.speed = 0.15 + Math.random() * 0.25;
+              }
+
+              // Enhanced swaying motion based on rotation
+              const swayAmount = userData.swayAmount * (1 + Math.abs(rotationSpeedRef.current.y));
+              text.position.x += Math.sin(time * userData.swaySpeed + index) * swayAmount;
+
+              // Fade based on position and rotation
+              const fadeDistance = 5;
+              if (text.position.y > 20) {
+                text.material.opacity = Math.max(0, (25 - text.position.y) / fadeDistance);
+              } else if (text.position.y < -15) {
+                text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
+              } else {
+                text.material.opacity = 0.6 + Math.sin(time * 3 + index) * 0.2;
+              }
+            }
+          });
+        }
+      } else {
+        // Default animation when not dragging
+        heart.rotation.y += 0.02;
+
+        // Synchronize all elements
+        if (fireParticles) fireParticles.rotation.y = heart.rotation.y;
+        if (shadowGroup) shadowGroup.rotation.y = heart.rotation.y;
+        if (textGroup) {
+          textGroup.children.forEach((text, index) => {
+            // Add gentle rotation while falling
+            text.rotation.y = heart.rotation.y * 0.5;
+
+            // Continue normal falling animation
+            const userData = text.userData;
+            if (time > userData.delay) {
+              text.position.y -= userData.speed;
+
+              if (text.position.y < -17) {
+                text.position.y = 30 + Math.random() * 20;
+                text.position.x = (Math.random() - 0.5) * 70;
+                text.position.z = (Math.random() - 0.5) * 40;
+                userData.speed = 0.15 + Math.random() * 0.25;
+              }
+
+              text.position.x += Math.sin(time * userData.swaySpeed + index) * userData.swayAmount;
+
+              const fadeDistance = 5;
+              if (text.position.y > 20) {
+                text.material.opacity = Math.max(0, (25 - text.position.y) / fadeDistance);
+              } else if (text.position.y < -15) {
+                text.material.opacity = Math.max(0, (text.position.y + 20) / fadeDistance);
+              } else {
+                text.material.opacity = 0.6 + Math.sin(time * 3 + index) * 0.2;
+              }
+            }
+          });
+        }
+      }
 
       // Float up and down
       const float = Math.sin(Date.now() * 0.001) * 0.3;
@@ -643,26 +785,26 @@ const GlowingHeart = () => {
       }
 
       // Animate ocean
-      if (true) {
-        oceanGroup.rotation.y = Math.sin(time * 0.3) * 0.1;
-        oceanGroup.rotation.z = Math.cos(time * 0.2) * 0.05;
+      // if (true) {
+      //   oceanGroup.rotation.y = Math.sin(time * 0.3) * 0.1;
+      //   oceanGroup.rotation.z = Math.cos(time * 0.2) * 0.05;
 
-        // Animate foam particles
-        const foamPos = foam.geometry.attributes.position.array;
-        for (let i = 0; i < foamPos.length; i += 3) {
-          // Floating with waves
-          const x = foamPos[i];
-          const z = foamPos[i + 2];
-          foamPos[i + 1] = -18 + Math.sin(x * 0.05 + time * 2) * 2 +
-            Math.cos(z * 0.05 + time * 1.5) * 2 +
-            Math.random() * 0.5;
+      //   // Animate foam particles
+      //   const foamPos = foam.geometry.attributes.position.array;
+      //   for (let i = 0; i < foamPos.length; i += 3) {
+      //     // Floating with waves
+      //     const x = foamPos[i];
+      //     const z = foamPos[i + 2];
+      //     foamPos[i + 1] = -18 + Math.sin(x * 0.05 + time * 2) * 2 +
+      //       Math.cos(z * 0.05 + time * 1.5) * 2 +
+      //       Math.random() * 0.5;
 
-          // Drift
-          foamPos[i] += Math.sin(time + i) * 0.02;
-          foamPos[i + 2] += Math.cos(time + i) * 0.02;
-        }
-        foam.geometry.attributes.position.needsUpdate = true;
-      }
+      //     // Drift
+      //     foamPos[i] += Math.sin(time + i) * 0.02;
+      //     foamPos[i + 2] += Math.cos(time + i) * 0.02;
+      //   }
+      //   foam.geometry.attributes.position.needsUpdate = true;
+      // }
 
       // Animate stars twinkling
       if (starsGroup) {
@@ -697,7 +839,13 @@ const GlowingHeart = () => {
 
     // Cleanup
     return () => {
-      window.removeEventListener('resize', handleResize);
+      mount.removeEventListener('mousedown', handleMouseDown);
+      mount.removeEventListener('touchstart', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+
       if (frameRef.current) {
         cancelAnimationFrame(frameRef.current);
       }
@@ -752,7 +900,7 @@ const GlowingHeart = () => {
         });
       }
     };
-  }, []);
+  }, []); // Empty dependency array
 
   return (
     <div
@@ -761,7 +909,10 @@ const GlowingHeart = () => {
         width: '100%',
         height: '100vh',
         overflow: 'hidden',
-        background: '#000000'
+        background: '#000000',
+        cursor: isDraggingRef.current ? 'grabbing' : 'grab',
+        userSelect: 'none',
+        touchAction: 'none' // Prevent default touch actions
       }}
     />
   );
