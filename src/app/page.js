@@ -36,7 +36,7 @@ const GlowingHeart = () => {
 
     // Create DENSE heart - fill entire volume
     const heartGeometry = new THREE.BufferGeometry();
-    const particleCount = 15000; // Reduced from 50000
+    const particleCount = 15000; // Increased from 15000 for smoother look
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
 
@@ -49,7 +49,7 @@ const GlowingHeart = () => {
       const baseY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
 
       // Bias towards edges: use power function to concentrate particles on surface
-      const radiusBias = Math.pow(Math.random(), 0.3); // Power < 1 pushes values toward 1 (edge)
+      const radiusBias = Math.pow(Math.random(), 0.4); // Changed from 0.3 to 0.4 for softer edges
 
       // Scale and apply radius
       const scale = 0.4; // Reverted back to original
@@ -82,11 +82,11 @@ const GlowingHeart = () => {
 
     // Heart material - very small points for density
     const heartMaterial = new THREE.PointsMaterial({
-      size: 0.29, // Increased from 0.06
+      size: 0.35, // Increased from 0.29 for softer look
       vertexColors: true,
       blending: THREE.AdditiveBlending,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.85, // Decreased from 0.9 for softer appearance
       sizeAttenuation: true
     });
 
@@ -455,7 +455,7 @@ const GlowingHeart = () => {
       logoGroup.add(logo);
 
       // Position the entire group
-      logoGroup.position.set(20, 30, -10);
+      logoGroup.position.set(15, 30, -10); // Changed X from 20 to 15
 
       // Add multiple glow lights for softer effect
       const glowColors = [
