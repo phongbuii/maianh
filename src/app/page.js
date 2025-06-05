@@ -313,7 +313,7 @@ const GlowingHeart = () => {
 
       // Style text
       context.font = 'Bold 64px Arial'; // Increased from 48px
-      context.fillStyle = '#FF0099';
+      context.fillStyle = '#FF0000';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
 
