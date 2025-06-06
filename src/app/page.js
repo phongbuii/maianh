@@ -318,8 +318,8 @@ const GlowingHeart = () => {
       context.textBaseline = 'middle';
 
       // Add glow effect
-      context.shadowColor = '#ff66aa';
-      context.shadowBlur = 20;
+      context.shadowColor = '#ff77aa'; // Brighter glow
+      context.shadowBlur = 25; // Increased from 20
 
       // Draw text
       context.fillText(text, 256, 64);
@@ -332,7 +332,7 @@ const GlowingHeart = () => {
       const spriteMaterial = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
-        opacity: 0.95, // Increased from 0.8 to 0.95 for better visibility
+        opacity: 1.0, // Increased from 0.95 to 1.0 for maximum visibility
         blending: THREE.AdditiveBlending
       });
 
@@ -707,11 +707,11 @@ const GlowingHeart = () => {
             // Enhanced fade in/out with higher minimum opacity
             const fadeDistance = 5;
             if (text.position.y > 20) {
-              text.material.opacity = Math.max(0.5, (25 - text.position.y) / fadeDistance * 0.95); // Increased minimum opacity
+              text.material.opacity = Math.max(0.8, (25 - text.position.y) / fadeDistance); // Increased from 0.5 to 0.8
             } else if (text.position.y < -15) {
-              text.material.opacity = Math.max(0.3, (text.position.y + 20) / fadeDistance * 0.95); // Increased minimum opacity
+              text.material.opacity = Math.max(0.6, (text.position.y + 20) / fadeDistance); // Increased from 0.3 to 0.6
             } else {
-              text.material.opacity = 0.8 + Math.sin(times * 3 + index) * 0.15; // Increased base opacity to 0.8
+              text.material.opacity = 0.95 + Math.sin(times * 3 + index) * 0.05; // Increased base opacity to 0.95 with smaller variation
             }
           }
         });
